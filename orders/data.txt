@@ -1,0 +1,15 @@
+
+    {
+        "username": "costica",
+        "email": "costica@gmail.com",
+        "balance": "2350.23"
+    },
+    {
+        "username": "emilian",
+        "email": "emilian@gmail.com",
+        "balance": "520.50"
+    },
+    {
+        "username": "gigi",
+        "email": "gigi@gmail.com",
+        "balance": "4500.34"
