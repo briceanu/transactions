@@ -9,7 +9,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework import status
 from rest_framework import mixins
 from decimal import Decimal
- 
+from products.serializers import ProductSerializer
 
 class PlaceOrderAPI(generics.CreateAPIView, mixins.CreateModelMixin):
     queryset = Order.objects.all()
@@ -85,7 +85,6 @@ class PlaceOrderAPI(generics.CreateAPIView, mixins.CreateModelMixin):
 
 
 
-
 # client orders many products
 class PlaceOrderProductsAPI(generics.CreateAPIView, mixins.CreateModelMixin):
     queryset = Order.objects.all()
@@ -141,7 +140,7 @@ class PlaceOrderProductsAPI(generics.CreateAPIView, mixins.CreateModelMixin):
                 price = Decimal(item.price)  * number_of_items
                 total_sum+= price
                 # append the purchased items to the purchased_itmes
-                purchased_items.append( {'item':item.product_name, 'number_of_items':number_of_items, 'price':price})
+                purchased_items.append( {'item':item.product_name, 'number_of_items':number_of_items, 'price':item.price})
                 # remove the bought items from the db
                 item.number_in_stock -= number_of_items
                 item.save()
@@ -157,6 +156,11 @@ class PlaceOrderProductsAPI(generics.CreateAPIView, mixins.CreateModelMixin):
             user.balance -= Decimal(total_sum)
             user.save()
 
+            Order.objects.create(
+                user=user,
+                number_of_items=number_of_items
+                )
+
             data= {'data':purchased_items,'total_amount':total_sum}
 
         # If all products are valid, proceed with the request
@@ -168,6 +172,24 @@ class PlaceOrderProductsAPI(generics.CreateAPIView, mixins.CreateModelMixin):
 
 
 
+
+class LearnAPI(generics.ListAPIView, mixins.ListModelMixin):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+# buying only one product
+    def get(self,request,*args,**kwargs):
+        # print(self.queryset)
+
+        # awd = [item for item in Product.objects.all() if item.price < 3000]
+        # awd = Product.objects.filter(price__lte=100)
+        # order or user
+        ifi = ['dumitrescu']
+        user  = User.objects.get(username='dumitrescu')
+        orders = user.orders.all() 
+        print(orders)
+
+        return Response({'awd':'awd'},status=status.HTTP_200_OK)
 
 
 

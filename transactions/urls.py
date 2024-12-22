@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
  
 extra_patterns=[
     path('',include('user.urls')),
@@ -30,3 +31,8 @@ urlpatterns = [
     path('api/',include(extra_patterns))
 
 ]
+
+
+
+if settings.DEBUG:  # Only use Silk in development
+    urlpatterns += [path('silk/', include('silk.urls', namespace='silk'))]
