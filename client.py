@@ -32,12 +32,12 @@ import requests
 
 
 data = {
-        'user_email':'dumitrescu@gmail.com',
+        'user_email':'teodorbriceanu@gmail.com',
         'products':[
                 # {'product_id':'bb12e082-a7fb-49c9-a9c4-1796f38cfaf3','number_of_items':2},
-                {'product_id':'afa9d14e-2b73-4e20-942d-58e3993f8fdd','number_of_items':2},
-                # {'product_id':'6162b522-caa7-4ce1-ab06-92729d00c393','number_of_items':1},
-                # {'product_id':'3fdb51f7-1f46-4d44-9fd9-e50115c38ece','number_of_items':3}
+                {'product_id':'afa9d14e-2b73-4e20-942d-58e3993f8fdd','number_of_items':1},
+                # {'product_id':'5793488e-9c08-4204-8a8f-c658c5c5af50','number_of_items':1},
+                # {'product_id':'0c0e9010-b5a9-4373-9800-3fe5173b9048','number_of_items':3}
                 ],
         }
 

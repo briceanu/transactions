@@ -9,8 +9,17 @@ from rest_framework.exceptions import NotFound
 from rest_framework import status
 from rest_framework import mixins
 from decimal import Decimal
+import httpx
+from adrf.views import APIView as adrfView
+import requests
+from django.core.mail import send_mail
+from django.conf import settings
+from transactions.tasks import send_client_email
 from products.serializers import ProductSerializer
+from products.models import Product
 
+ 
+# from adrf.views import APIView
 class PlaceOrderAPI(generics.CreateAPIView, mixins.CreateModelMixin):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -112,7 +121,7 @@ class PlaceOrderProductsAPI(generics.CreateAPIView, mixins.CreateModelMixin):
             return Response({'error': 'No products provided'}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             # we filter for the products the client provided
-            existing_products = Product.objects.filter(product_id__in=products_id).values_list('product_id', flat=True)
+            existing_products = Product.objects.filter(product_id__in=products_id).values_list('product_id', flat=True).order_by()
             existing_product_ids = {str(product_id) for product_id in existing_products}  
             not_found_products = [product_id for product_id in products_id if product_id not in existing_product_ids]
             # If the client provides product_ids that aren't in the db we throw an 404  
@@ -155,45 +164,39 @@ class PlaceOrderProductsAPI(generics.CreateAPIView, mixins.CreateModelMixin):
             # withdraw the amount from the account
             user.balance -= Decimal(total_sum)
             user.save()
-
+            # we are creating a new order   
             Order.objects.create(
                 user=user,
                 number_of_items=number_of_items
                 )
 
-            data= {'data':purchased_items,'total_amount':total_sum}
-
+            subject = 'Details of your order'
+            message = f"Items purchased: {purchased_items}, Total Amount: {total_sum}"
+   
+            data = (
+                "Your order has been placed successfully."
+                "You will receive an email with the details of your purchase."
+                "On behalf of our team, we wish you a nice day."
+            )
+            try:
+            # we are importing the shared task from tasks.py to send the confirmation email
+                send_client_email(subject,message,user.email)
+            except Exception as e:
+                return Response({'error':f'Error sending email: {e}'},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         # If all products are valid, proceed with the request
-        return Response(data, status=status.HTTP_200_OK)
+            return Response(data, status=status.HTTP_200_OK)
+
+# subject message address
+# testing 
+# we create two views for sending emails
+# one asynchronous and one synchronous
+
 
 
 
  
-
-
-
-
-class LearnAPI(generics.ListAPIView, mixins.ListModelMixin):
-    queryset = Product.objects.all()
+class LearnAPI(generics.ListAPIView):
     serializer_class = ProductSerializer
-
-# buying only one product
-    def get(self,request,*args,**kwargs):
-        # print(self.queryset)
-
-        # awd = [item for item in Product.objects.all() if item.price < 3000]
-        # awd = Product.objects.filter(price__lte=100)
-        # order or user
-        ifi = ['dumitrescu']
-        user  = User.objects.get(username='dumitrescu')
-        orders = user.orders.all() 
-        print(orders)
-
-        return Response({'awd':'awd'},status=status.HTTP_200_OK)
-
-
-
-
-
+    queryset = Product.objects.all()
 
  
