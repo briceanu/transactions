@@ -10,3 +10,8 @@ class CreateUserAPI(generics.CreateAPIView):
 class ListUserAPI(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+class UpdateUserAPIView(generics.UpdateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    lookup_field='username'

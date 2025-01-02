@@ -9,17 +9,15 @@ from rest_framework.exceptions import NotFound
 from rest_framework import status
 from rest_framework import mixins
 from decimal import Decimal
-import httpx
-from adrf.views import APIView as adrfView
-import requests
-from django.core.mail import send_mail
-from django.conf import settings
-from transactions.tasks import send_client_email
-from products.serializers import ProductSerializer
+from transactions.tasks import send_client_email_with_pdf ,generate_pdf_task
 from products.models import Product
+from user.serializers import UserSerializer
+from user.models import User
+from celery import chain
 
- 
+
 # from adrf.views import APIView
+
 class PlaceOrderAPI(generics.CreateAPIView, mixins.CreateModelMixin):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -165,38 +163,60 @@ class PlaceOrderProductsAPI(generics.CreateAPIView, mixins.CreateModelMixin):
             user.balance -= Decimal(total_sum)
             user.save()
             # we are creating a new order   
-            Order.objects.create(
+            order = Order.objects.create(
                 user=user,
                 number_of_items=number_of_items
                 )
-
-            subject = 'Details of your order'
-            message = f"Items purchased: {purchased_items}, Total Amount: {total_sum}"
-   
+            order_id = order.order_id  
             data = (
                 "Your order has been placed successfully."
                 "You will receive an email with the details of your purchase."
                 "On behalf of our team, we wish you a nice day."
             )
-            try:
-            # we are importing the shared task from tasks.py to send the confirmation email
-                send_client_email(subject,message,user.email)
-            except Exception as e:
-                return Response({'error':f'Error sending email: {e}'},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            # Chain the tasks: generate PDF first, then send the email
+            task_chain = chain(
+                generate_pdf_task.s(purchased_items, total_sum, user.username, order_id,user.email), # Generate the PDF
+                send_client_email_with_pdf.s() #send the email
+            )
+            task_chain()  # Execute the chained tasks
+        except Exception as e:
+            return Response({'error': f'Error processing tasks: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         # If all products are valid, proceed with the request
-            return Response(data, status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK)
 
-# subject message address
-# testing 
-# we create two views for sending emails
-# one asynchronous and one synchronous
-
-
+ 
 
 
  
-class LearnAPI(generics.ListAPIView):
-    serializer_class = ProductSerializer
-    queryset = Product.objects.all()
+class LearnAPI(generics.GenericAPIView, mixins.UpdateModelMixin):
+    serializer_class = UserSerializer
+    queryset = User.objects.all()
+
+
+
+    def put(self,request,*args,**kwargs):
+        user_email = self.request.data.get('user_email')
+        new_balance = self.request.data.get('new_balance')
+        if not user_email or not new_balance:
+            return Response({'error':'user_email and new_balance'},status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(email=user_email)
+        except User.DoesNotExist:
+            raise NotFound(detail=f'user with the email {user_email} not found.')
+
+        data = {'balance':new_balance}    
+        serializer = self.serializer_class(user,data=data,partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'success': f'balance updated to {serializer.instance.balance}'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+       
+# # update the balance of a user
 
  
+class ListOrdersAPIView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
